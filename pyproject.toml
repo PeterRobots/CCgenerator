@@ -1,0 +1,27 @@
+[project]
+name = "cc-whisper"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "pyannote-audio>=4.0.7",
+    #"torch>=2.7.0",
+    #"torchcodec>=0.6.0",
+    "whisperx>=3.8.7rc1",
+    "nvidia-cublas-cu12",
+    "nvidia-cudnn-cu12>=9.0",
+    "peft>=0.19.1",
+    "transformers>=5.14.1",
+    "librosa>=0.11.0",
+    "srt>=3.5.3",
+    "datasets>=5.0.0",
+]
+
+#[tool.uv.sources]
+#whisperx = { path = "../whisperX", editable = true }
+#pyannote-audio = { path = "../pyannote-audio", editable = true }
+#[tool.uv]
+#override-dependencies = [
+#    "whisperx ; sys_platform == 'never'"
+#]
