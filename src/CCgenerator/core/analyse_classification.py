@@ -51,6 +51,3 @@ def analyse_segment_data(data) -> DF:
     # shared_words = set1 & set2
 
     return data
-
-
-

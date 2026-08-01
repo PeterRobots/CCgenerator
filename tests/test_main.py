@@ -12,18 +12,18 @@ from src.CCgenerator.__main__ import main
 
 class TestMain(unittest.TestCase):
     '''Smoketests'''
-    @unittest.mock.patch('sys.argv', ['main.py'])
+    @unittest.mock.patch('sys.argv', ['main.py', 'tests/test_cases/test_audio.mp3'])
     @unittest.mock.patch('sys.stdout', new_callable=io.StringIO)
-    # def test_stdio_interactive(self, mock_stdout):
-    #     '''This is a smoketest of the program with interactive inputs.'''
-    #     # Setup
-    #     test_commands: List[str] = []
-    #     expected_result: str = '0,2,NORTH\n'
-    #     # Action
-    #     with unittest.mock.patch('builtins.input', side_effect=test_commands):
-    #         main()
-    #     # Assert
-    #     self.assertEqual(mock_stdout.getvalue(), expected_result)
+    def test_cli(self, mock_stdout):
+        '''This is a smoke test with cli'''
+        # Setup
+        test_commands: List[str] = []
+        expected_result: str = '0,2,NORTH\n'
+        # Action
+        with unittest.mock.patch('whisperX.', side_effect=test_commands):
+            main()
+        # Assert
+        self.assertEqual(mock_stdout.getvalue(), expected_result)
     #
     # @unittest.mock.patch('sys.argv', ['main.py', '--verbose'])
     # @unittest.mock.patch('sys.stdout', new_callable=io.StringIO)

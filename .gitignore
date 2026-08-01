@@ -2,6 +2,9 @@
 .secrets
 config.ini
 
+# Kate
+*.kate-swp
+
 # Python-generated files
 __pycache__/
 *.py[oc]
