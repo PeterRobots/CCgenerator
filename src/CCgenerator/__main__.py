@@ -3,7 +3,7 @@ from pathlib import Path
 from configparser import ConfigParser
 from dotenv import dotenv_values
 from utils.parser import parse_arguments
-from CCgenerator.utils.exceptions import MissingPyAnnoteToken, MissingHFToken
+from CCgenerator.utils.exceptions import MissingPyAnnoteToken, MissingHFToken, BadModelName
 
 def update_with_cli_args(args, cli_args) -> dict:
     args.update({k:v for k,v in cli_args.items if not v is None})
@@ -69,14 +69,29 @@ def main():
     if "hf-token" not in args:
         raise MissingHFToken()
 
-    if args['pyannote-model'] == 'community':
-        args['pyannote-model'] = "pyannote/speaker-diarization-community-1"
-    elif args['pyannote-model'] == 'precision':
-        args['pyannote-model'] = "pyannote/speaker-diarization-precision-2"
-        if "pyannote-key" not in args:
-            raise MissingPyAnnoteToken()
-    else: # default to free version
-        args['pyannote-model'] = "pyannote/speaker-diarization-community-1"
+    PYANNOTE_MODELS = {
+        "community" : "pyannote/speaker-diarization-community-1",
+        "precision" :  "pyannote/speaker-diarization-precision-2"
+        }
+
+    args['pyannote-model'] = args['pyannote-model'].lower()
+
+    if args['pyannote-model'] in PYANNOTE_MODELS:
+        if args['pyannote-model'] == 'precision' && args['pyannote-key'] is None:
+            raise MissingPyAnnoteToken
+        else:
+            args['pyannote-model'] = PYANNOTE_MODELS[args['pyannote-model']]
+    else:
+        raise BadModelName()
+
+    ASP_MODELS = {
+        "MIT" : "ast-finetuned-audioset-10-10-04593"
+        }
+
+    if args['asp-model'].lower() in PYANNOTE_MODELS:
+        args['asp-model'] = ASP_MODELS[args['pyannote-model'].lower()]
+    else:
+        raise BadModelName()
 
     from CCgenerator.app import run
     run(args, parser)

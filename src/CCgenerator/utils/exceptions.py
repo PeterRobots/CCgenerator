@@ -29,6 +29,9 @@ class MissingPyAnnoteToken(BaseMissingException):
     message = "Missing PyAnnote token for precision model."
     pass
 
+class BadModelName(BaseMissingException):
+    message = "Bad model name given."
+
 # WARNINGS #
 
 class BaseCommandWarning(UserWarning):

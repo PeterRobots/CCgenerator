@@ -27,10 +27,10 @@ def parse_arguments() -> dict:
     parser.add_argument("--pyannote-model", default=None, help="name of the PyAnnote model to use")
     parser.add_argument("--pyannote-model-dir", type=str, default=None, help="the path to save model files; uses ~/.cache/pyannote by default")
     parser.add_argument("--pyannote-key", type=str, default=None, help="PyAnnote key for access to premium precision model.")
-    # ASP
-    parser.add_argument("--asp-model", default=None, help="name of the ASP model to use")
-    parser.add_argument("--asp-model-cache-only", type=str2bool, default=None, help="If True, will not attempt to download models, instead using cached models from --asp-model_dir")
-    parser.add_argument("--asp-model-dir", type=str, default=None, help="the path to save model files; uses ~/.cache/asp by default")
+    # ast
+    parser.add_argument("--ast-model", default=None, help="name of the ast model to use")
+    parser.add_argument("--ast-model-cache-only", type=str2bool, default=None, help="If True, will not attempt to download models, instead using cached models from --ast-model_dir")
+    parser.add_argument("--ast-model-dir", type=str, default=None, help="the path to save model files; uses ~/.cache/ast by default")
     parser.add_argument("--score-threshold", default=None, help="Minimum score threshold for background sound identification.")
     # Compute
     parser.add_argument("--low-resources", default=None, help="Unload models from vram and ram after each step to save resources")
@@ -45,7 +45,7 @@ def parse_arguments() -> dict:
     parser.add_argument("--verbose", type=str2bool, default=None, help="whether to print out the progress and debug messages")
     parser.add_argument("--log-level", type=str, default=None, choices=["debug", "info", "warning", "error", "critical"], help="logging level (overrides --verbose if set)")
 
-    parser.add_argument("--config", type=str, default=None, help="Configuration (ini) file with settings for CCgenerator, whisperX, PyAnnote and ASP")
+    parser.add_argument("--config", type=str, default=None, help="Configuration (ini) file with settings for CCgenerator, whisperX, PyAnnote and ast")
     parser.add_argument("--secrets", type=str, default=None, help=".secrets file containing Write permission Hugging Face Access Token to access models")
     parser.add_argument("--hf-token", type=str, default=None, help="Write permission Hugging Face Access Token to access PyAnnote gated models")
 
