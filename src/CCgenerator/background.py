@@ -12,52 +12,50 @@ import math
 from typing import List
 import glob
 
-def audio_classifier():
-
+def audio_classifier(model_name):
     # Load base model configuration and set for FSD50K multi-label task
-    base_config = AutoConfig.from_pretrained("ast-finetuned-audioset-10-10-04593")
+    base_config = AutoConfig.from_pretrained(model_name)
     # base_config.num_labels = 200
     base_config.problem_type = "multi_label_classification"
-
     # Load base model (87M parameters, ~340 MB)
     model = AutoModelForAudioClassification.from_pretrained(
-        "ast-finetuned-audioset-10-10-04593",
+        model_name,
         config=base_config,
         ignore_mismatched_sizes=True
     )
-
-    # # Apply LoRA adapter
-    # model = PeftModel.from_pretrained(base_model, "audioforge-ast-fsd50k")
-    # model.eval()
-    # logits = model(input_values=input_values).logits
-    # probs = torch.sigmoid(logits)  # Multi-label probabilities for each class
-    # tokenizer = AutoTokenizer.from_pretrained("ast-finetuned-audioset-10-10-04593")
- ### Without PIPELINE
-    feature_extractor = AutoFeatureExtractor.from_pretrained("ast-finetuned-audioset-10-10-04593")
-#     inputs = feature_extractor(audio_file, sampling_rate=sampling_rate, return_tensors="pt")
-#
-#     with torch.no_grad():
-#         logits = model(**inputs).logits
-#     predicted_class_ids = torch.argmax(logits).item()
-#     predicted_label = model.config.id2label[predicted_class_ids]
-#     print(predicted_label)
-
-    ### PIPELINE
+    feature_extractor = AutoFeatureExtractor.from_pretrained(model_name)
     classifier = pipeline("audio-classification", model=model, feature_extractor=feature_extractor)
-    # classifier = pipeline("audio-classification", model="./ast-finetuned-audioset-10-10-04593/")
-    # classifier.load_lora_weights(
-    #     "./audioforge-ast-fsd50k",
-    #     weight_name="adapter_model.safetensors",
-    #     # adapter_name="cereal"
-    # )
-    # result = classifier(audio_file)
-    # for i,r in enumerate(result):
-    #     label_id = int(r['label'].replace('LABEL_',''))
-    #     result[i]['label'] = base_config.id2label[label_id]
-    #     print(label_id)
-    #     print(base_config.id2label[label_id])
-    # print(result)
+
     return classifier
+
+
+def apply_lora(classifier:pipeline):
+    '''WIP nonfunctional'''
+    classifier.load_lora_weights(
+        "./audioforge-ast-fsd50k",
+        weight_name="adapter_model.safetensors",
+        # adapter_name="cereal"
+    )
+    result = classifier(audio_file)
+    for i,r in enumerate(result):
+        label_id = int(r['label'].replace('LABEL_',''))
+        result[i]['label'] = base_config.id2label[label_id]
+        print(label_id)
+        print(base_config.id2label[label_id])
+    print(result)
+    # Apply LoRA adapter
+    model = PeftModel.from_pretrained(base_model, "audioforge-ast-fsd50k")
+    model.eval()
+    logits = model(input_values=input_values).logits
+    probs = torch.sigmoid(logits)  # Multi-label probabilities for each class
+    tokenizer = AutoTokenizer.from_pretrained("ast-finetuned-audioset-10-10-04593")
+    inputs = feature_extractor(audio_file, sampling_rate=sampling_rate, return_tensors="pt")
+
+    with torch.no_grad():
+        logits = model(**inputs).logits
+    predicted_class_ids = torch.argmax(logits).item()
+    predicted_label = model.config.id2label[predicted_class_ids]
+    print(predicted_label)
 
 
 def load_audio(audio_path:Path, sample_rate=16000):
