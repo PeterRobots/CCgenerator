@@ -7,6 +7,8 @@ from pyannote.audio.telemetry import set_telemetry_metrics
 # disable metrics globally
 set_telemetry_metrics(False, save_choice_as_default=True)
 
+def speech_classifier():
+    pass
 
 def run_whisperx(
     audio_file,

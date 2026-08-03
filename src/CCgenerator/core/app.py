@@ -1,7 +1,7 @@
 import os
 import warnings
 from CCgenerator.utils.exceptions import MissingFileError, MissingHFToken, MissingPyAnnoteToken
-
+from CCgenerator.speech import run_whisperx
 from logger import get_logger
 
 logger = get_logger(__name__)
@@ -60,7 +60,7 @@ def run(args: dict, parser: argparse.ArgumentParser):
     run_whisperx(
         audio_file,
         model_name,
-        model_cache_only
+        model_cache_only,
         align_model_dir,
         align_model_cache_only,
         pyannote_model_name,

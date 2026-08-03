@@ -12,7 +12,7 @@ import math
 from typing import List
 import glob
 
-def audio_classifier(model_name):
+def background_classifier(model_name):
     # Load base model configuration and set for FSD50K multi-label task
     base_config = AutoConfig.from_pretrained(model_name)
     # base_config.num_labels = 200

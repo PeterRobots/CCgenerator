@@ -31,7 +31,7 @@ def make_prediction_set(prediction:str) -> set:
     return set(prediction.lower().split(", ")
 
 
-def analyse_segment_data(data) -> DF:
+def analyser(data) -> DF:
     # Make sets of the prediction strings
     data["prediction_set"] = data["prediction"].apply(make_prediction_set)
     data["prediction_2_set"] = data["prediction_2"].apply(make_prediction_set)
