@@ -37,9 +37,10 @@ def load_config(config_path) -> dict:
         config = ConfigParser()
         config.read(config_path)
         logger.info("Loaded configuration file args.")
-        args = config['CCgenerator'] | config['whisperX'] | config['PyAnnote'] | config['ASP']
+        args = config['CCgenerator'] | config['ASR'] | config['AST']
     else:
         logger.error("Invalid config file path.")
+
 
     return args
 
@@ -84,12 +85,13 @@ def main():
     else:
         raise BadModelName()
 
-    ASP_MODELS = {
-        "MIT" : "ast-finetuned-audioset-10-10-04593"
+    AST_MODELS = {
+        "mit" : "ast-finetuned-audioset-10-10-04593",
+        "qwen" : "Qwen/Qwen3-ASR-1.7B-hf"
         }
 
-    if args['asp-model'].lower() in PYANNOTE_MODELS:
-        args['asp-model'] = ASP_MODELS[args['pyannote-model'].lower()]
+    if args['ast-model'].lower() in PYANNOTE_MODELS:
+        args['ast-model'] = AST_MODELS[args['pyannote-model'].lower()]
     else:
         raise BadModelName()
 

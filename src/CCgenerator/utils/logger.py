@@ -17,7 +17,7 @@ def setup_logging(
         level: Logging level (debug, info, warning, error, critical). Default: info
         log_file: Optional path to log file. If None, logs only to console.
     """
-    logger = logging.getLogger("audioanalyzer")
+    logger = logging.getLogger("ccgenerator")
 
     logger.handlers.clear()
 
@@ -59,9 +59,9 @@ def get_logger(name: str) -> logging.Logger:
     Returns:
         Logger instance configured with WhisperX settings
     """
-    audioanalyzer_logger = logging.getLogger("audioanalyzer")
+    audioanalyzer_logger = logging.getLogger("ccgenerator")
     if not audioanalyzer_logger.handlers:
         setup_logging()
 
-    logger_name = "audioanalyzer" if name == "__main__" else name
+    logger_name = "ccgenerator" if name == "__main__" else name
     return logging.getLogger(logger_name)
