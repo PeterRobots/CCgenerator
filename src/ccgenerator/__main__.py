@@ -1,25 +1,30 @@
 import os
 import warnings
 import torch
+import gc
+import torch
 from pathlib import Path
 from configparser import ConfigParser
 from dotenv import dotenv_values
 from utils.parser import parse_arguments
-from CCgenerator import [
+from ccgenerator import (
     align,
-    background_classifier,
-    speech_classifier,
-    diarisation_classifier,
+    background,
+    speech,
+    diarize,
     analyser
-    ]
-from CCgenerator.utils.exceptions import MissingFileError, MissingHFToken, MissingPyAnnoteToken, BadModelName
+    )
+from ccgenerator.utils.exceptions import MissingFileError, MissingHFToken, MissingPyAnnoteToken, BadModelName
 from logger import get_logger
+
 
 logger = get_logger(__name__)
 
 def update_with_cli_args(args, cli_args) -> dict:
     args.update({k:v for k,v in cli_args.items if not v is None})
+
     return args
+
 
 def get_secrets(args:dict) -> dict:
     secret_path = Path(args["secrets"])
@@ -29,6 +34,7 @@ def get_secrets(args:dict) -> dict:
         secrets = update_with_cli_args(secrets, args)
 
     return secrets
+
 
 def get_config(args:dict) -> dict:
     # DEFAULT CONFIG
@@ -58,6 +64,12 @@ def load_config(config_path) -> dict:
 
 
 def main():
+    """Run and parse cli input if available.
+
+    Args:
+        args: Dictionary of command-line arguments.
+        parser: argparse.ArgumentParser object.
+    """
     args = parse_arguments()
 
     log_level = args.get("log_level")
@@ -90,7 +102,7 @@ def main():
     args['pyannote-model'] = args['pyannote-model'].lower()
 
     if args['pyannote-model'] in PYANNOTE_MODELS:
-        if args['pyannote-model'] == 'precision' && args['pyannote-key'] is None:
+        if args['pyannote-model'] == 'precision' and args['pyannote-key'] is None:
             raise MissingPyAnnoteToken
         else:
             args['pyannote-model'] = PYANNOTE_MODELS[args['pyannote-model']]
@@ -108,14 +120,8 @@ def main():
         raise BadModelName()
 
 
-    """Run and parse cli input if available.
-
-    Args:
-        args: Dictionary of command-line arguments.
-        parser: argparse.ArgumentParser object.
-    """
-
     audio_file: str = args.pop("audio")
+    mode: str = args.pop("mode")
     # Compute
     low_resources = args.pop("low-resources")
     device: str = args.pop("device")
@@ -156,24 +162,53 @@ def main():
     PRINT_PROGRESS: bool = args.pop("print-progress")
 
     logger.info("Loaded cli args.")
+    # delete model if low on GPU resources
+    # import gc; import torch; gc.collect(); torch.cuda.empty_cache(); del model
 
-    run_whisperx(
-        audio_file,
-        model_name,
-        model_cache_only,
-        align_model_dir,
-        align_model_cache_only,
-        pyannote_model_name,
-        pyannote_model_dir,
-        device,
-        compute_type,
-        batch_size,
-        HF_TOKEN,
-        PYANNOTE_KEY=PYANNOTE_KEY
-        )
+    match mode.lower():
+        case 'all':
+            results = []
 
-if __name__ == "__main__":
-    run()
+            result = speech(model_name, device=device, compute_type=compute_type, download_root=whisperx_model_name, use_auth_token=HF_TOKEN, local_files_only=whisperx_model_cache_only)
+            results.append((result, audio_file))
+
+            if save_resources:
+                gc.collect(); torch.cuda.empty_cache(); del model
+
+            result = align(audio, device=device, model_dir=whisperx_align_model_dir, model_cache_only=whisperx_align_model_cache_only)
+            results.append((result, audio_file))
+
+            if save_resources:
+                gc.collect(); torch.cuda.empty_cache(); del model
+
+            result = diarize(model_name=diarize_model, token=PYANNOTE_TOKEN, device=device, cache_dir=diarize_dir)
+            results.append((result, audio_file))
+            write_results(results, output_format=output_format, highlight_words=highlight_words, max_line_count=max_line_count, max_line_width=max_line_width)
+
+        case 'speech':
+            results = []
+
+            result = speech(model_name, device=device, compute_type=compute_type, download_root=whisperx_model_name, use_auth_token=HF_TOKEN, local_files_only=whisperx_model_cache_only)
+            results.append((result, audio_file))
+
+            if save_resources:
+                gc.collect(); torch.cuda.empty_cache(); del model
+
+            result = align(audio, device=device, model_dir=whisperx_align_model_dir, model_cache_only=whisperx_align_model_cache_only)
+            results.append((result, audio_file))
+
+            if save_resources:
+                gc.collect(); torch.cuda.empty_cache(); del model
+
+            result = diarize(model_name=diarize_model, token=PYANNOTE_TOKEN, device=device, cache_dir=diarize_dir)
+            results.append((result, audio_file))
+            write_results(results, output_format=output_format, highlight_words=highlight_words, max_line_count=max_line_count, max_line_width=max_line_width)
+
+        case 'background':
+            background(audio_file)
+
+        case 'analyse' | 'analyze':
+            analyse(data_file)
 
 
 

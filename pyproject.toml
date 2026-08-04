@@ -1,9 +1,22 @@
+[build-system]
+# Tells uv what tool to use to compile your package
+requires = ["uv_build>=0.12.1"]
+build-backend = "uv_build"
+
 [project]
-name = "cc-whisper"
+name = "CCgenerator"
 version = "0.1.0"
-description = "Add your description here"
+description = "A Python package to generate closed captions from supplied audio or video."
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
+license = { text = "MIT" }
+authors = [
+    { name = "Peter Inzani", email = "inzani.p@gmail.com" }
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+]
 dependencies = [
     "pyannote-audio>=4.0.7",
     #"torch>=2.7.0",
@@ -16,7 +29,17 @@ dependencies = [
     "librosa>=0.11.0",
     "srt>=3.5.3",
     "datasets>=5.0.0",
+    "dotenv>=0.9.9",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.6.0",
+]
+
+[project.scripts]
+cli = "CCgenerator:main"
 
 #[tool.uv.sources]
 #whisperx = { path = "../whisperX", editable = true }
