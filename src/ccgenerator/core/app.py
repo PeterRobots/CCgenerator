@@ -1,7 +1,7 @@
 import os
 import warnings
-from CCgenerator.utils.exceptions import MissingFileError, MissingHFToken, MissingPyAnnoteToken
-from CCgenerator.speech import run_whisperx
+from ccgenerator.utils.exceptions import MissingFileError, MissingHFToken, MissingPyAnnoteToken
+from ccgenerator.speech import run_whisperx
 from logger import get_logger
 
 logger = get_logger(__name__)

@@ -5,7 +5,7 @@ import math
 from typing import List
 import glob
 from collections import Counter
-
+from utils.exceptions import InvalidFileTypeError
 
 def get_row_prediction_matches(data, row, p_set_label, row_p_set_label) -> List[int]:
     idx_match_list = data[data[p_set_label].apply(lambda x: x & getattr(row,row_p_set_label))].index.to_list()
@@ -27,11 +27,17 @@ def compare_segment_labels(data:DF) -> DF:
 
 
 def make_prediction_set(prediction:str) -> set:
-
     return set(prediction.lower().split(", ")
 
 
-def analyser(data) -> DF:
+def analyse(data) -> DF:
+    if isinstance(data, Path):
+        # load combined grouped segment data
+        data = pd.read(data)
+    elif not isinstance(data, DF):
+        raise InvalidFileTypeError()
+
+    analysed_output = {k:[] for k in data.columns.to_list()}
     # Make sets of the prediction strings
     data["prediction_set"] = data["prediction"].apply(make_prediction_set)
     data["prediction_2_set"] = data["prediction_2"].apply(make_prediction_set)
@@ -40,10 +46,14 @@ def analyser(data) -> DF:
     segments = data.drop_duplicates(subset="segment").to_list()
     for s in segments:
         data_segment = data[data["segment"] == s]
-        data_segment = compare_segment_labels(data)
+        data_segment = compare_segment_labels(data_segment)
+        data_segment.
+
+      # Look within segments, compare overlapping segments and pick highest score.ArithmeticError
+      # Look at labelled value, if label matches for overlapping segment, pick largest segment or simply combine into new table entry for start -> end.
 
 
-    data["matching_segments"] =
+    # data["matching_segments"] =
     # segment_label_sets = []
     # for l in sement_labels:
     #     segment_label_sets.appends(set(l.lower().split(", ")))

@@ -12,7 +12,7 @@ from ccgenerator import (
     background,
     speech,
     diarize,
-    analyser
+    analyse
     )
 from ccgenerator.utils.exceptions import MissingFileError, MissingHFToken, MissingPyAnnoteToken, BadModelName
 from logger import get_logger
@@ -200,15 +200,15 @@ def main():
             if save_resources:
                 gc.collect(); torch.cuda.empty_cache(); del model
 
-            result = diarize(model_name=diarize_model, token=PYANNOTE_TOKEN, device=device, cache_dir=diarize_dir)
+            result = diarize(audio_file, whisper_result, model_name=diarize_model, token=PYANNOTE_TOKEN, device=device, cache_dir=diarize_dir)
             results.append((result, audio_file))
             write_results(results, output_format=output_format, highlight_words=highlight_words, max_line_count=max_line_count, max_line_width=max_line_width)
 
         case 'background':
-            background(audio_file)
-
+            result = background(audio_file)
+            analyse(result)
         case 'analyse' | 'analyze':
-            analyse(data_file)
+            analyse(audio_file)
 
 
 

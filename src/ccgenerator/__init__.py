@@ -4,10 +4,10 @@ import importlib.metadata
 __version__ = importlib.metadata.version("ccgenerator")
 
 from .core.alignment import align
-from .core.background import background_classifier
-from .core.speech import speech_classifier
-from .core.diarisation import diarisation_classifier
-from .core.analyse import analyser
+from .core.background import background
+from .core.speech import speech
+from .core.diarization import diarize
+from .core.analyse import analyse
 
 def _lazy_import(name):
     module = importlib.import_module(f"audioanalyzer.{name}")

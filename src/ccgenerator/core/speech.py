@@ -7,13 +7,11 @@ from pyannote.audio.telemetry import set_telemetry_metrics
 # disable metrics globally
 set_telemetry_metrics(False, save_choice_as_default=True)
 
-def speech_classifier():
-    pass
 
-def run_whisperx(
+def speech(
     audio_file,
     model_name,
-    model_cache_only
+    model_cache_only,
     align_model_dir,
     align_model_cache_only,
     diarize_model,
@@ -52,12 +50,7 @@ def run_whisperx(
     # delete model if low on GPU resources
     # import gc; import torch; gc.collect(); torch.cuda.empty_cache(); del model_a
 
-    # 3. Assign speaker labels
-    diarize_model = DiarizationPipeline(model_name=diarize_model, token=PYANNOTE_TOKEN, device=device, cache_dir=diarize_dir)
-    diarize_segments = diarize_model(audio)
-    # diarize_model(audio, min_speakers=min_speakers, max_speakers=max_speakers)
 
-    result = whisperx.assign_word_speakers(diarize_segments, result)
     results.append((result, audio_file))
     print(diarize_segments)
     print(result["segments"]) # segments are now assigned speaker IDs

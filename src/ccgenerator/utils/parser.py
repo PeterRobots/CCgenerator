@@ -13,7 +13,8 @@ def parse_arguments() -> dict:
         ''',
         usage='%(prog)s audio_file [options]'
         )
-    parser.add_argument("audio", nargs="+", type=str, help="audio file(s) to transcribe")
+    parser.add_argument("audio", "-i", nargs="+", type=str, help="audio file(s) to transcribe. If 'analyze' mode, supply data.csv instead")
+    parser.add_argument("--mode", "-m", default=None, help="Mode of operation: all, speech, background, analyze.")
     parser.add_argument("--max-line-width", default=None, help="Character line width to use for closed captions.")
     parser.add_argument("--max-line-count", default=None, help="Number of lines for closed captions.")
     # whisperX
@@ -45,12 +46,12 @@ def parse_arguments() -> dict:
     parser.add_argument("--verbose", type=str2bool, default=None, help="whether to print out the progress and debug messages")
     parser.add_argument("--log-level", type=str, default=None, choices=["debug", "info", "warning", "error", "critical"], help="logging level (overrides --verbose if set)")
 
-    parser.add_argument("--config", type=str, default=None, help="Configuration (ini) file with settings for CCgenerator, whisperX, PyAnnote and ast")
-    parser.add_argument("--secrets", type=str, default=None, help=".secrets file containing Write permission Hugging Face Access Token to access models")
-    parser.add_argument("--hf-token", type=str, default=None, help="Write permission Hugging Face Access Token to access PyAnnote gated models")
+    parser.add_argument("--config", "-c", type=str, default=None, help="Configuration (ini) file with settings for CCgenerator, whisperX, PyAnnote and ast")
+    parser.add_argument("--secrets", "-s", type=str, default=None, help=".secrets file containing Write permission Hugging Face Access Token to access models")
+    parser.add_argument("--hf-token", "-t", type=str, default=None, help="Write permission Hugging Face Access Token to access PyAnnote gated models")
 
-    parser.add_argument("--print-progress", type=str2bool, default = None, help = "if True, progress will be printed in transcribe() and align() methods.")
-    parser.add_argument("--version", "-V", action="version", version=f"%(prog)s {importlib.metadata.version('audioanalyzer')}",help="Show audioanalyzer version information and exit")
+    parser.add_argument("--print-progress", type=str2bool, default = None, help = "if True, progress will be printed.")
+    parser.add_argument("--version", "-V", action="version", version=f"%(prog)s {importlib.metadata.version('CCgenerator')}",help="Show CCgenerator version information and exit")
     parser.add_argument("--python-version", "-P", action="version", version=f"Python {platform.python_version()} ({platform.python_implementation()})",help="Show python version information and exit")
 
     return parser.parse_args().__dict__
