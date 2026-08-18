@@ -92,7 +92,6 @@ def main():
 
     # Get config and update args.
     args = get_config(args)
-    print(args)
     # Get secrets, should be HF_TOKEN and optionally PYANNOTE_TOKEN
     if "secrets" in args:
         args = get_secrets(args)
@@ -130,20 +129,33 @@ def main():
 
 
     audio_file: str = args.pop("audio")
+    output_kwargs_keys = [
+        "output-dir",
+        "output-format",
+        "max-line-count",
+        "max-line-width",
+        "highlight-words"
+        ]
+    output_kwargs = {}
+    for k in output_kwargs_keys:
+        if k in args:
+            output_kwargs.update({k.replace("-","_"):args[k]})
+
     mode: str = args.pop("mode")
-    max_line_count: int = args.pop("max-line-count")
-    max_line_width: int = args.pop("max-line-width")
-    highlight_words : bool = args.pop("highlight-words")
     # Compute
-    low_resources = args.pop("low-resources")
-    device: str = args.pop("device")
-    output_dir: str = args.pop("output-dir")
-    output_format: str = args.pop("output-format")
-    device_index: int = args.pop("device-index")
-    batch_size: int = args.pop("batch-size")
-    compute_type: str = args.pop("compute-type")
-    log_level: str = args.pop("log-level")
-    cpu_threads: int = args.pop("threads")
+    compute_kwargs_keys = [
+        "low-resources",
+        "device",
+        "device-index",
+        "batch-size",
+        "compute-type",
+        "log-level",
+        "threads"
+        ]
+    compute_kwargs = {}
+    for k in compute_kwargs_keys:
+        if k in args:
+            compute_kwargs.update({k.replace("-","_"):args[k]})
 
     # whisperX
     whisperx_model_name: str = args.pop("whisperx-model")
@@ -182,14 +194,11 @@ def main():
         speech_result = speech(
             audio_file,
             whisperx_model_name,
-            whisperx_align_model_dir,
+            whisperx_model_dir,
             whisperx_model_cache_only,
-            device,
-            compute_type,
-            batch_size,
             HF_TOKEN,
             PYANNOTE_KEY,
-            low_resources=low_resources
+            **compute_kwargs
             )
 
         results.append((speech_result, audio_file))
@@ -198,10 +207,11 @@ def main():
         result = align(
             audio_file,
             speech_result,
-            device=device,
+            device=compute_kwargs["device"],
             model_dir=whisperx_align_model_dir,
             model_cache_only=whisperx_align_model_cache_only,
-            low_resources=low_resources
+            batch_size=compute_kwargs["batch_size"],
+            low_resources=compute_kwargs["low_resources"]
             )
         results.append((result, audio_file))
 
@@ -211,9 +221,9 @@ def main():
             speech_result,
             model_name=diarize_model,
             token=PYANNOTE_TOKEN,
-            device=device,
+            device=compute_kwargs["device"],
             cache_dir=diarize_dir,
-            low_resources=low_resources
+            low_resources=compute_kwargs["low_resources"]
             )
         results.append((result, audio_file))
 
@@ -223,23 +233,16 @@ def main():
             ast_model_name,
             model_path=ast_model_dir,
             cache_only=ast_model_cache_only,
-            device=device,
-            output_path=output_dir,
-            low_resources=low_resources
+            device=compute_kwargs["device"],
+            output_path=output_kwargs["output_dir"],
+            low_resources=compute_kwargs["low_resources"]
             )
         results.append((result, audio_file))
 
     if mode in ('analyse', 'analyze', 'all'):
         analyse(audio_file, results)
 
-    write_results(
-        results,
-        output_dir=output_dir,
-        output_format=output_format,
-        highlight_words=highlight_words,
-        max_line_count=max_line_count,
-        max_line_width=max_line_width
-        )
+    write_results(results, **output_kwargs_keys)
 
 
 
