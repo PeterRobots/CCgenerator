@@ -1,7 +1,7 @@
 import os
 import warnings
-from CCgenerator.utils.exceptions import MissingFileError, MissingHFToken, MissingPyAnnoteToken
-from CCgenerator.speech import run_whisperx
+from ccgenerator.utils.exceptions import MissingFileError, MissingHFToken, MissingPyAnnoteToken
+from ccgenerator.speech import run_whisperx
 from logger import get_logger
 
 logger = get_logger(__name__)
@@ -39,9 +39,9 @@ def run(args: dict, parser: argparse.ArgumentParser):
     pyannote_model_dir: str = args.pop("pyannote-model-dir")
 
     # ASP
-    asp_model_name: str = args.pop("asp-model")
-    asp_model_dir: str = args.pop("asp-model-dir")
-    asp_model_cache_only: bool = args.pop("asp-model-cache-only")
+    ast_model_name: str = args.pop("ast-model")
+    ast_model_dir: str = args.pop("ast-model-dir")
+    ast_model_cache_only: bool = args.pop("ast-model-cache-only")
 
     # SECRETS
     HF_TOKEN: str = args.pop("hf-token")

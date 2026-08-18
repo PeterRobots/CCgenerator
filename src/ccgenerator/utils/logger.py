@@ -59,8 +59,8 @@ def get_logger(name: str) -> logging.Logger:
     Returns:
         Logger instance configured with WhisperX settings
     """
-    audioanalyzer_logger = logging.getLogger("ccgenerator")
-    if not audioanalyzer_logger.handlers:
+    ccgenerator_logger = logging.getLogger("ccgenerator")
+    if not ccgenerator_logger.handlers:
         setup_logging()
 
     logger_name = "ccgenerator" if name == "__main__" else name

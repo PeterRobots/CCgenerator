@@ -7,7 +7,7 @@ from utils.exceptions import (
     MissingFileError,
     InvalidFileTypeError
     )
-from src.CCgenerator.__main__ import main
+from src.ccgenerator.__main__ import main
 
 
 class TestMain(unittest.TestCase):

@@ -11,22 +11,25 @@ from pandas import DataFrame as df
 import math
 from typing import List
 import glob
+from ccgenerator.utils.low_resources import unload_model
+from ccgenerator.utils.exceptions import BadModelName
 
-def background_classifier(model_name):
+
+def background_classifier(model_path, model_cache_only=False):
     # Load base model configuration and set for FSD50K multi-label task
-    base_config = AutoConfig.from_pretrained(model_name)
+    base_config = AutoConfig.from_pretrained(model_path)
     # base_config.num_labels = 200
     base_config.problem_type = "multi_label_classification"
     # Load base model (87M parameters, ~340 MB)
     model = AutoModelForAudioClassification.from_pretrained(
-        model_name,
+        model_path,
         config=base_config,
         ignore_mismatched_sizes=True
     )
-    feature_extractor = AutoFeatureExtractor.from_pretrained(model_name)
-    classifier = pipeline("audio-classification", model=model, feature_extractor=feature_extractor)
+    feature_extractor = AutoFeatureExtractor.from_pretrained(model_path)
+    classifier = pipeline("audio-classification", model=model, feature_extractor=feature_extractor, device=device)
 
-    return classifier
+    return model, classifier
 
 
 def apply_lora(classifier:pipeline):
@@ -79,8 +82,6 @@ def classify_segment(classifier, sounds, segment_length=2, segment_margin=0.0, s
         "end":[],
         "prediction":[],
         "score":[],
-        "prediction_2":[],
-        "score_2":[],
         }
     max_time = len(sounds)
     increment = samples_per_segment - samples_per_margin
@@ -104,32 +105,15 @@ def classify_segment(classifier, sounds, segment_length=2, segment_margin=0.0, s
 
         # Run inference on the audio segment
         predictions = classifier(chunk)
-        # skip if top prediction is speech and second is low score.
-        if predictions[0]["label"].lower() == 'speech':
-            if predictions[1]['score'] < 0.1:
-                continue
-            else:
-                predictions[0] = predictions[1]
-                predictions[1] = predictions[2]
-        # Skip if top prediction is too low
-        elif predictions[0]["score"] < 0.1:
-            continue
-        top_prediction = predictions[0]
-        prediction_string = f"[{start_time:.1f}s - {end_time:.1f}s] {top_prediction['label']}: {top_prediction['score']:.2%}"
-        prediction_strings.append(prediction_string)
-        # SRT format prediction
-        srt_start_time = datetime.timedelta(seconds = start_time)
-        srt_end_time = datetime.timedelta(seconds = end_time)
-        srt_prediction = srt.Subtitle(index=idx, start=srt_start_time, end=srt_end_time, content=f"The sound of {top_prediction['label']} in the background")
-        srt_predictions.append(srt_prediction)
-        # CSV
-        segment_dict["index"].append(idx)
-        segment_dict["start"].append(start_time)
-        segment_dict["end"].append(end_time)
-        segment_dict["prediction"].append(predictions[0]['label'])
-        segment_dict["score"].append(predictions[0]['score'])
-        segment_dict["prediction_2"].append(predictions[1]['label'])
-        segment_dict["score_2"].append(predictions[1]['score'])
+        for prediction in predictions:
+            prediction_string = f"[{start_time:.1f}s - {end_time:.1f}s] {prediction['label']}: {prediction['score']:.2%}"
+            prediction_strings.append(prediction_string)
+            # CSV
+            segment_dict["index"].append(idx)
+            segment_dict["start"].append(start_time)
+            segment_dict["end"].append(end_time)
+            segment_dict["prediction"].append(prediction['label'])
+            segment_dict["score"].append(prediction['score'])
 # index (int or None) – The SRT index for this subtitle
 # start (datetime.timedelta) – The time that the subtitle should start being shown
 # end (datetime.timedelta) – The time that the subtitle should stop being shown
@@ -142,10 +126,6 @@ def classify_segment(classifier, sounds, segment_length=2, segment_margin=0.0, s
     # print(segment_dict)
     data = df(segment_dict)
     data.to_csv(output_path/output_file.with_suffix(".csv"), index=False)
-    # SRT
-    srt_string = srt.compose(srt_predictions)
-    with open(output_path/output_file.with_suffix(".srt"), 'w+') as f:
-        f.write(srt_string)
 
 
 def group_segments(data:df, output_path:Path):
@@ -191,21 +171,29 @@ def make_combined_segment_data(data_path):
     compare_prediction_resolutions(data, output_path)
 
 
-def run_asp(audio_file, data_path):
+def background(audio_file:Path, model_name, model_path=None, output_path=None, low_resources=False, model_cache_only=False):
     project_path = audio_file.parent
-    data_path = data_path / "cc_data"
-    if not data_path.is_dir():
-        data_path = audio_path.parent
+    if output_path is not None:
+        output_path = Path(output_path)
+        output_path = data_path / "cc_data"
+    else:
+        output_path = project_path / "cc_data"
+
+    # if model_cache_only: # WIP not implemented downloading model.
+    if model_path is None:
+        raise BadModelName("Background model not found at path")
+
+
     sounds, sample_rate = load_audio(audio_file)
     segment_lengths = [20, 10, 5, 2]
-    classifier = audio_classifier()
+    model, classifier = background_classifier(model_path, model_cache_only=model_cache_only)
     for sl in segment_lengths:
-        classify_segment(classifier, sounds, segment_length=sl, sample_rate=sample_rate, output_path=data_path)
+        classify_segment(classifier, sounds, segment_length=sl, sample_rate=sample_rate, output_path=output_path)
     # Load and group the segment data
-    data_path_pattern = data_path / "*.csv"
-    output_path = data_path / "all_segments.csv"
+    data_path_pattern = output_path / "*.csv"
+    output_path = output_path / "all_segments.csv"
     data = load_glob_csv_data(data_path_pattern)
-    group_segments(data, output_path)
-    # load combined grouped segment data
-    data = pd.read(data_path / "all_segments.csv")
-    analyse_segment_data(data)
+    data = group_segments(data, output_path)
+    unload_model(model, low_resources=low_resources)
+
+    return data

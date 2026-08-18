@@ -12,16 +12,18 @@ from ccgenerator import (
     background,
     speech,
     diarize,
-    analyser
+    analyse,
+    get_logger,
+    setup_logging
     )
 from ccgenerator.utils.exceptions import MissingFileError, MissingHFToken, MissingPyAnnoteToken, BadModelName
-from logger import get_logger
-
+from ccgenerator.utils.writer import write_results
 
 logger = get_logger(__name__)
 
+
 def update_with_cli_args(args, cli_args) -> dict:
-    args.update({k:v for k,v in cli_args.items if not v is None})
+    args.update({k:v for k,v in cli_args.items() if not v is None})
 
     return args
 
@@ -36,9 +38,28 @@ def get_secrets(args:dict) -> dict:
     return secrets
 
 
+def load_config(config_path:Path) -> dict:
+    if config_path.is_file():
+        config = ConfigParser()
+        config.read(config_path)
+        logger.info("Loaded configuration file args.")
+        args = {}
+        for section in config.sections():
+            args.update({k:v for k,v in config.items(section) if not v is None and not v == "None"})
+        # args = dict(config.get('CCgenerator')) | dict(config.get('ASR')) | dict(config.get('AST'))
+    else:
+        logger.error("Invalid config file path.")
+        raise MissingFileError("Invalid config file path.")
+
+    return args
+
+
 def get_config(args:dict) -> dict:
     # DEFAULT CONFIG
-    default_config_args = load_config(".default_config.ini")
+    import importlib.resources as resources
+    package_path = resources.files("ccgenerator")
+    default_config_path = package_path / ".default_config.ini"
+    default_config_args = load_config(default_config_path)
     # USER CONFIG
     if 'config' in args:
         config_path: Path = Path(args.pop("config"))
@@ -48,19 +69,6 @@ def get_config(args:dict) -> dict:
     default_config_args = update_with_cli_args(default_config_args, args)
 
     return default_config_args
-
-
-def load_config(config_path) -> dict:
-    if config_path.is_dir():
-        config = ConfigParser()
-        config.read(config_path)
-        logger.info("Loaded configuration file args.")
-        args = config['CCgenerator'] | config['ASR'] | config['AST']
-    else:
-        logger.error("Invalid config file path.")
-
-
-    return args
 
 
 def main():
@@ -84,9 +92,10 @@ def main():
 
     # Get config and update args.
     args = get_config(args)
-
+    print(args)
     # Get secrets, should be HF_TOKEN and optionally PYANNOTE_TOKEN
-    args = get_secrets(args)
+    if "secrets" in args:
+        args = get_secrets(args)
 
     if args['device'] == 'default':
         args['device'] = 'cuda' if torch.cuda.is_available() else "cpu"
@@ -107,21 +116,24 @@ def main():
         else:
             args['pyannote-model'] = PYANNOTE_MODELS[args['pyannote-model']]
     else:
-        raise BadModelName()
+        raise BadModelName("Missing Pyannote model")
 
     AST_MODELS = {
         "mit" : "ast-finetuned-audioset-10-10-04593",
         "qwen" : "Qwen/Qwen3-ASR-1.7B-hf"
         }
-
-    if args['ast-model'].lower() in PYANNOTE_MODELS:
-        args['ast-model'] = AST_MODELS[args['pyannote-model'].lower()]
+    arg_ast_model = args['ast-model'].lower()
+    if arg_ast_model in AST_MODELS:
+        args['ast-model'] = AST_MODELS[arg_ast_model]
     else:
-        raise BadModelName()
+        raise BadModelName("Missing ast model")
 
 
     audio_file: str = args.pop("audio")
     mode: str = args.pop("mode")
+    max_line_count: int = args.pop("max-line-count")
+    max_line_width: int = args.pop("max-line-width")
+    highlight_words : bool = args.pop("highlight-words")
     # Compute
     low_resources = args.pop("low-resources")
     device: str = args.pop("device")
@@ -144,10 +156,10 @@ def main():
     pyannote_model_name: str = args.pop("pyannote-model")
     pyannote_model_dir: str = args.pop("pyannote-model-dir")
 
-    # ASP
-    asp_model_name: str = args.pop("asp-model")
-    asp_model_dir: str = args.pop("asp-model-dir")
-    asp_model_cache_only: bool = args.pop("asp-model-cache-only")
+    # AST
+    ast_model_name: str = args.pop("ast-model")
+    ast_model_dir: str = args.pop("ast-model-dir")
+    ast_model_cache_only: bool = args.pop("ast-model-cache-only")
 
     # SECRETS
     HF_TOKEN: str = args.pop("hf-token")
@@ -164,51 +176,70 @@ def main():
     logger.info("Loaded cli args.")
     # delete model if low on GPU resources
     # import gc; import torch; gc.collect(); torch.cuda.empty_cache(); del model
+    results = []
+    mode = mode.lower()
+    if mode in ('speech', 'all'):
+        speech_result = speech(
+            audio_file,
+            whisperx_model_name,
+            whisperx_align_model_dir,
+            whisperx_model_cache_only,
+            device,
+            compute_type,
+            batch_size,
+            HF_TOKEN,
+            PYANNOTE_KEY,
+            low_resources=low_resources
+            )
 
-    match mode.lower():
-        case 'all':
-            results = []
+        results.append((speech_result, audio_file))
 
-            result = speech(model_name, device=device, compute_type=compute_type, download_root=whisperx_model_name, use_auth_token=HF_TOKEN, local_files_only=whisperx_model_cache_only)
-            results.append((result, audio_file))
+    if mode in ('speech', 'align', 'all'):
+        result = align(
+            audio_file,
+            speech_result,
+            device=device,
+            model_dir=whisperx_align_model_dir,
+            model_cache_only=whisperx_align_model_cache_only,
+            low_resources=low_resources
+            )
+        results.append((result, audio_file))
 
-            if save_resources:
-                gc.collect(); torch.cuda.empty_cache(); del model
+    if mode in ('speech', 'diarize', 'diarise', 'all'):
+        result = diarize(
+            audio_file,
+            speech_result,
+            model_name=diarize_model,
+            token=PYANNOTE_TOKEN,
+            device=device,
+            cache_dir=diarize_dir,
+            low_resources=low_resources
+            )
+        results.append((result, audio_file))
 
-            result = align(audio, device=device, model_dir=whisperx_align_model_dir, model_cache_only=whisperx_align_model_cache_only)
-            results.append((result, audio_file))
+    if mode in ('background', 'all'):
+        result = background(
+            audio_file,
+            ast_model_name,
+            model_path=ast_model_dir,
+            cache_only=ast_model_cache_only,
+            device=device,
+            output_path=output_dir,
+            low_resources=low_resources
+            )
+        results.append((result, audio_file))
 
-            if save_resources:
-                gc.collect(); torch.cuda.empty_cache(); del model
+    if mode in ('analyse', 'analyze', 'all'):
+        analyse(audio_file, results)
 
-            result = diarize(model_name=diarize_model, token=PYANNOTE_TOKEN, device=device, cache_dir=diarize_dir)
-            results.append((result, audio_file))
-            write_results(results, output_format=output_format, highlight_words=highlight_words, max_line_count=max_line_count, max_line_width=max_line_width)
-
-        case 'speech':
-            results = []
-
-            result = speech(model_name, device=device, compute_type=compute_type, download_root=whisperx_model_name, use_auth_token=HF_TOKEN, local_files_only=whisperx_model_cache_only)
-            results.append((result, audio_file))
-
-            if save_resources:
-                gc.collect(); torch.cuda.empty_cache(); del model
-
-            result = align(audio, device=device, model_dir=whisperx_align_model_dir, model_cache_only=whisperx_align_model_cache_only)
-            results.append((result, audio_file))
-
-            if save_resources:
-                gc.collect(); torch.cuda.empty_cache(); del model
-
-            result = diarize(model_name=diarize_model, token=PYANNOTE_TOKEN, device=device, cache_dir=diarize_dir)
-            results.append((result, audio_file))
-            write_results(results, output_format=output_format, highlight_words=highlight_words, max_line_count=max_line_count, max_line_width=max_line_width)
-
-        case 'background':
-            background(audio_file)
-
-        case 'analyse' | 'analyze':
-            analyse(data_file)
+    write_results(
+        results,
+        output_dir=output_dir,
+        output_format=output_format,
+        highlight_words=highlight_words,
+        max_line_count=max_line_count,
+        max_line_width=max_line_width
+        )
 
 
 
