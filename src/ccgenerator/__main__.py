@@ -19,6 +19,8 @@ from ccgenerator import (
 from ccgenerator.utils.exceptions import MissingFileError, MissingHFToken, MissingPyAnnoteToken, BadModelName
 from ccgenerator.utils.writer import write_results
 
+from typing import Tuple
+
 logger = get_logger(__name__)
 
 
@@ -71,6 +73,16 @@ def get_config(args:dict) -> dict:
     return default_config_args
 
 
+def get_temperatures(temperature, increment_temperature) -> Tuple[float]:
+    temperature = args.pop("temperature")
+    if (increment := args.pop("temperature_increment_on_fallback")) is not None:
+        temperature = tuple(np.arange(temperature, 1.0 + 1e-6, increment))
+    else:
+        temperature = (temperature)
+
+    return temperature
+
+
 def main():
     """Run and parse cli input if available.
 
@@ -79,6 +91,7 @@ def main():
         parser: argparse.ArgumentParser object.
     """
     args = parse_arguments()
+    args = {k.replace("-","_"):v for k,v in args.items()}
 
     log_level = args.get("log_level")
     verbose = args.get("verbose")
@@ -99,91 +112,110 @@ def main():
     if args['device'] == 'default':
         args['device'] = 'cuda' if torch.cuda.is_available() else "cpu"
 
-    if "hf-token" not in args:
+    if "hf_token" not in args:
         raise MissingHFToken()
 
-    PYANNOTE_MODELS = {
-        "community" : "pyannote/speaker-diarization-community-1",
-        "precision" :  "pyannote/speaker-diarization-precision-2"
-        }
-
-    args['pyannote-model'] = args['pyannote-model'].lower()
-
-    if args['pyannote-model'] in PYANNOTE_MODELS:
-        if args['pyannote-model'] == 'precision' and args['pyannote-key'] is None:
-            raise MissingPyAnnoteToken
-        else:
-            args['pyannote-model'] = PYANNOTE_MODELS[args['pyannote-model']]
-    else:
-        raise BadModelName("Missing Pyannote model")
 
     AST_MODELS = {
         "mit" : "ast-finetuned-audioset-10-10-04593",
         "qwen" : "Qwen/Qwen3-ASR-1.7B-hf"
         }
-    arg_ast_model = args['ast-model'].lower()
+    arg_ast_model = args['ast_model'].lower()
     if arg_ast_model in AST_MODELS:
-        args['ast-model'] = AST_MODELS[arg_ast_model]
+        args['ast_model'] = AST_MODELS[arg_ast_model]
     else:
         raise BadModelName("Missing ast model")
 
 
     audio_file: str = args.pop("audio")
-    output_kwargs_keys = [
-        "output-dir",
-        "output-format",
-        "max-line-count",
-        "max-line-width",
-        "highlight-words"
-        ]
-    output_kwargs = {}
-    for k in output_kwargs_keys:
-        if k in args:
-            output_kwargs.update({k.replace("-","_"):args[k]})
+    language = args.pop("language")
+    log_level = args.pop("log_level")
+
+    output_options = {
+        "output_dir":args.pop("output_dir"),
+        "output_format":args.pop("output_format"),
+        "max_line_count":args.pop("max_line_count"),
+        "max_line_width":args.pop("max_line_width"),
+        "highlight_words":args.pop("highlight_words")
+        }
 
     mode: str = args.pop("mode")
     # Compute
-    compute_kwargs_keys = [
-        "low-resources",
-        "device",
-        "device-index",
-        "batch-size",
-        "compute-type",
-        "log-level",
-        "threads"
-        ]
-    compute_kwargs = {}
-    for k in compute_kwargs_keys:
-        if k in args:
-            compute_kwargs.update({k.replace("-","_"):args[k]})
+    compute_options = {
+        "low_resources":args.pop("low_resources"),
+        "device":args.pop("device"),
+        "device_index":args.pop("device_index"),
+        "batch_size":args.pop("batch_size"),
+        "compute_type":args.pop("compute_type"),
+        "threads":args.pop("threads")
+        }
 
-    # whisperX
-    whisperx_model_name: str = args.pop("whisperx-model")
-    whisperx_model_dir: str = args.pop("whisperx-model-dir")
-    whisperx_model_cache_only: bool = args.pop("whisperx-model-cache-only")
-    whisperx_align_model_dir: str = args.pop("whisperx-align-model-dir")
-    whisperx_align_model_cache_only: bool = args.pop("whisperx-align-model-cache-only")
+    temperatures = get_temperatures(args["temperature"], args["temperature_increment_on_fallback"])
+    # ASR
+    asr_options = {
+        "beam_size": args.pop("beam_size"),
+        "patience": args.pop("patience"),
+        "length_penalty": args.pop("length_penalty"),
+        "temperatures": temperature,
+        "compression_ratio_threshold": args.pop("compression_ratio_threshold"),
+        "log_prob_threshold": args.pop("logprob_threshold"),
+        "no_speech_threshold": args.pop("no_speech_threshold"),
+        "condition_on_previous_text": False,
+        "initial_prompt": args.pop("initial_prompt"),
+        "hotwords": args.pop("hotwords"),
+        "suppress_tokens": [int(x) for x in args.pop("suppress_tokens").split(",")],
+        "suppress_numerals": args.pop("suppress_numerals"),
+    }
+    asr_model_name: str = args.pop("asr_model")
+    asr_model_dir: str = args.pop("asr_model_dir")
+    asr_model_cache_only: bool = args.pop("asr_model_cache_only")
+    align_model_dir: str = args.pop("align_model_dir")
+    align_model_cache_only: bool = args.pop("align_model_cache_only")
+    align_options = {
+        "language": language,
+    }
 
-    # PyAnnote
-    pyannote_model_name: str = args.pop("pyannote-model")
-    pyannote_model_dir: str = args.pop("pyannote-model-dir")
+    # VAD
+    VAD_MODELS = {
+        "community" : "pyannote/speaker_diarization_community_1",
+        "precision" :  "pyannote/speaker_diarization_precision_2",
+        }
+
+    vad_model_name = args.pop('vad_model').lower()
+
+    if vad_model_name in VAD_MODELS:
+        if vad_model_name == 'precision' and args['vad_key'] is None:
+            raise MissingPyAnnoteToken
+        else:
+            vad_model_name = VAD_MODELS[vad_model_name]
+    else:
+        raise BadModelName("Missing VAD model")
+
+    vad_model_dir: str = args.pop("vad_model_dir")
+    vad_options={
+        "chunk_size": args.pop("chunk_size"),
+        "vad_onset": args.pop("vad_onset"),
+        "vad_offset": args.pop("vad_offset"),
+        "interpolate_method":args.pop("interpolate_method"),
+        "return_char_alignments":args.pop("return_char_alignments"),
+    },
 
     # AST
-    ast_model_name: str = args.pop("ast-model")
-    ast_model_dir: str = args.pop("ast-model-dir")
-    ast_model_cache_only: bool = args.pop("ast-model-cache-only")
+    ast_model_name: str = args.pop("ast_model")
+    ast_model_dir: str = args.pop("ast_model_dir")
+    ast_model_cache_only: bool = args.pop("ast_model_cache_only")
 
     # SECRETS
-    HF_TOKEN: str = args.pop("hf-token")
+    HF_TOKEN: str = args.pop("hf_token")
 
-    if "pyannote-key" in args:
-        PYANNOTE_KEY:str = args.pop("pyannote-key")
+    if "vad_key" in args:
+        VAD_KEY:str = args.pop("vad_key")
     else:
-        PYANNOTE_KEY:str = None
+        VAD_KEY:str = None
 
     # FLAGS
     VERBOSE: bool = args.pop("verbose")
-    PRINT_PROGRESS: bool = args.pop("print-progress")
+    PRINT_PROGRESS: bool = args.pop("print_progress")
 
     logger.info("Loaded cli args.")
     # delete model if low on GPU resources
@@ -193,11 +225,11 @@ def main():
     if mode in ('speech', 'all'):
         speech_result = speech(
             audio_file,
-            whisperx_model_name,
-            whisperx_model_dir,
-            whisperx_model_cache_only,
+            asr_model_name,
+            asr_model_dir,
+            asr_model_cache_only,
             HF_TOKEN,
-            PYANNOTE_KEY,
+            VAD_KEY,
             **compute_kwargs
             )
 
@@ -208,10 +240,11 @@ def main():
             audio_file,
             speech_result,
             device=compute_kwargs["device"],
-            model_dir=whisperx_align_model_dir,
-            model_cache_only=whisperx_align_model_cache_only,
-            batch_size=compute_kwargs["batch_size"],
-            low_resources=compute_kwargs["low_resources"]
+            model_dir=align_model_dir,
+            model_cache_only=align_model_cache_only,
+            print_progress=print_progress,
+            low_resources=compute_kwargs["low_resources"],
+            **align_options
             )
         results.append((result, audio_file))
 
@@ -220,10 +253,11 @@ def main():
             audio_file,
             speech_result,
             model_name=diarize_model,
-            token=PYANNOTE_TOKEN,
+            token=VAD_TOKEN,
             device=compute_kwargs["device"],
             cache_dir=diarize_dir,
-            low_resources=compute_kwargs["low_resources"]
+            low_resources=compute_kwargs["low_resources"],
+            **vad_options
             )
         results.append((result, audio_file))
 

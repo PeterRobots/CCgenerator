@@ -26,15 +26,15 @@ def parse_arguments() -> dict:
     parser.add_argument("--max-line-width", type=optional_int, default=None, help="Character line width to use for closed captions.")
     parser.add_argument("--max-line-count", type=optional_int, default=None, help="Number of lines for closed captions.")
     # whisperX
-    parser.add_argument("--whisperx-model", type=str, default=None, help="name of the Whisper model to use")
-    parser.add_argument("--whisperx-model-cache-only", type=str2bool, default=None, help="If True, will not attempt to download models, instead using cached models from --whisperx-model_dir")
-    parser.add_argument("--whisperx-model-dir", type=str, default=None, help="the path to save model files; uses ~/.cache/whisperx by default")
-    parser.add_argument("--whisperx-align-model-cache-only", type=str2bool, default=None, help="If True, will not attempt to download models, instead using cached models from --whisperx-align-model_dir")
-    parser.add_argument("--whisperx-align-model-dir", type=str, default=None, help="the path to save model files; uses ~/.cache/whisperx by default")
+    parser.add_argument("--asr-model", type=str, default=None, help="name of the Whisper model to use")
+    parser.add_argument("--asr-model-cache-only", type=str2bool, default=None, help="If True, will not attempt to download models, instead using cached models from --whisperx-model_dir")
+    parser.add_argument("--asr-model-dir", type=str, default=None, help="the path to save model files; uses ~/.cache/whisperx by default")
+    parser.add_argument("--align-model-cache-only", type=str2bool, default=None, help="If True, will not attempt to download models, instead using cached models from --whisperx-align-model_dir")
+    parser.add_argument("--align-model-dir", type=str, default=None, help="the path to save model files; uses ~/.cache/whisperx by default")
     # Pyannote
-    parser.add_argument("--pyannote-model", default=None, help="name of the PyAnnote model to use")
-    parser.add_argument("--pyannote-model-dir", type=str, default=None, help="the path to save model files; uses ~/.cache/pyannote by default")
-    parser.add_argument("--pyannote-key", type=str, default=None, help="PyAnnote key for access to premium precision model.")
+    parser.add_argument("--vad-model", default=None, help="name of the PyAnnote model to use")
+    parser.add_argument("--vad-model-dir", type=str, default=None, help="the path to save model files; uses ~/.cache/pyannote by default")
+    parser.add_argument("--vad-key", type=str, default=None, help="PyAnnote key for access to premium precision model.")
     # ast
     parser.add_argument("--ast-model", type=str, default=None, help="name of the ast model to use")
     parser.add_argument("--ast-model-cache-only", type=str2bool, default=None, help="If True, will not attempt to download models, instead using cached models from --ast-model_dir")
